@@ -2,16 +2,15 @@ package guideToDataMining
 
 case class User(name: String, map: Map[String, Double])
 
-class Distance {
+class Recommender {
 
-  lazy val test = 22
 
 }
 
-object Distance {
+object Recommender {
 
   def main(args: Array[String]): Unit = {
-    val d = new Distance
+    val d = new Recommender
     println(computeNearestNeighbor("Hailejy", users))
     println(recommend("Hailejy", users))
   }
@@ -26,13 +25,28 @@ object Distance {
     ("Sam", Map("BT" -> 5, "BB" -> 2, "NJ" -> 3, "P" -> 5, "SS" -> 4, "TS" -> 5)),
     ("Veronica", Map("BT" -> 3D, "NJ" -> 5D, "P" -> 4D, "SS" -> 2.5D, "TS" -> 3D)))
 
-
-  def manhattan(rating1: Option[Map[String, Double]], rating2: Option[Map[String, Double]]): Option[Double] =
-    if (!rating1.isDefined || !rating2.isDefined)
+  /**Computes the manhattenDistance between two ratings
+    *
+    * @param rating1
+    * @param rating2
+    * @return None if one rating is note defined, else the distance
+    */
+  def manhattan(rating1: Option[Map[String, Double]], rating2: Option[Map[String, Double]]): Option[Double] = {
+    //  None if no rating or no rating in common
+    if (!rating1.isDefined || !rating2.isDefined || rating1.get.map(e=> rating2.get.contains(e._1)).reduce(_&_))
       None
     else
       Option(rating1.get map (e => math.abs(e._2 - rating2.get.getOrElse(e._1, e._2))) reduce (_ + _))
 
+  }
+  /**Findes the nearest neighbor by distance
+    *
+    * Computes all manhattenDistances and retunrs them in a ordered list.
+    * If the fromUser is in List, his distance will be Zero. If
+    * @param fromUser
+    * @param users all users, with
+    * @return list of all users ordered by distance, 0 if s
+    */
   def computeNearestNeighbor(fromUser: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
     val userRatings = users get fromUser
     users.map(user => {
@@ -43,6 +57,12 @@ object Distance {
     }).flatten.toList.sortBy(t => t._2)
   }
 
+  /**Recommends artists by not rated nearest neighbor ratings
+    *
+    * @param user
+    * @param users
+    * @return
+    */
   def recommend(user: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
     val nearestUsers = computeNearestNeighbor(user, users)
     if (nearestUsers.size < 2) List[(String, Double)]()
