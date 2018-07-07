@@ -31,4 +31,4 @@ users.map(user => {
     case None => None
   }}).toList.flatten.sortBy(t => t._2)
 
-Option(None)
+users("Dan")

@@ -14,9 +14,28 @@ class RecommenderTest extends org.scalatest.FunSuite {
     ("Sam", Map("BT" -> 5, "BB" -> 2, "NJ" -> 3, "P" -> 5, "SS" -> 4, "TS" -> 5)),
     ("Veronica", Map("BT" -> 3D, "NJ" -> 5D, "P" -> 4D, "SS" -> 2.5D, "TS" -> 3D)))
 
-  test("Distance should be ") {
-    Recommender.manhattan(users.get("Bill"),users.get("Sam")) shou
-
+  test("Distance should be 8") {
+    val dist = Recommender.manhattan(users get("Bill"), users get("Sam"))
+    assert(dist.get == 8)
+  }
+  test("Option should be empty") {
+    assert(!Recommender.manhattan(users get ("Bill"), users get ("Ute")).isDefined)
+    assert(!Recommender.manhattan(users get ("Hans"), users get ("Ute")).isDefined)
+  }
+  test("get nearestNeighbor") {
+    val nn = Recommender.computeNearestNeighbor("Bill",users)
+    assert(nn(0) equals ("Dan",4.0))
+    assert(nn(1) equals ("Veronica",4.0))
+    assert(nn(6) equals ("Chan",14.0))
   }
 
+  test("user not in data"){
+    val nn = Recommender.computeNearestNeighbor("NOONE",users)
+    assert(nn isEmpty)
+  }
+  test("recommend for Bill") {
+    val recom = Recommender.recommend("Bill",users)
+    assert(recom(0) equals ("NJ",5.0))
+    assert(recom(1) equals ("TS",3.0))
+  }
 }
