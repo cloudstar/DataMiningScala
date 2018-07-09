@@ -32,3 +32,5 @@ users.map(user => {
   }}).toList.flatten.sortBy(t => t._2)
 
 users("Dan")
+
+None equals None
