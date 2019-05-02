@@ -1,19 +1,20 @@
-package guideToDataMining
+package guideToDataMining.recommender
+
+import scala.collection.mutable
+import scala.math.BigDecimal.RoundingMode
+
 
 case class User(name: String, map: Map[String, Double])
 
-class Recommender {
-
-
-}
-
 object Recommender {
 
-  def main(args: Array[String]): Unit = {
-    val d = new Recommender
-    println(computeNearestNeighbor("Hailejy", users))
-    println(recommend("Hailejy", users))
+  def
+  main(args: Array[String]): Unit = {
+    println(computeNNs("Hailey", users))
+    println(recommend("Hailey", users))
+    println(recommendWeighted("Hailey", users))
   }
+
 
   val users: Map[String, Map[String, Double]] = Map(
     ("Angelica", Map("BT" -> 3.5, "BB" -> 2.0, "NJ" -> 4.5, "P" -> 5.0, "SS" -> 1.5, "TS" -> 2.5, "VW" -> 2.0)),
@@ -32,36 +33,44 @@ object Recommender {
     * @return None if one rating is note defined, else the distance
     */
   def manhattan(rating1: Option[Map[String, Double]], rating2: Option[Map[String, Double]]): Option[Double] = {
-    //  None if no rating or no rating in common
-    if (rating1.isEmpty || rating2.isEmpty || rating1.get.map(e => rating2.get.contains(e._1)).reduce(_ & _))
-      None
+
+    //distance  or if not rated 0
+    def calcDistToRat2(rat: (String, Double)) =
+      math.abs(rat._2 - rating2.get.getOrElse(rat._1, rat._2))
+
+    if (rating1.isEmpty
+      || rating2.isEmpty
+      || rating1.get.map(e => rating2.get.contains(e._1)).reduce(_ & _))
+      None //  None if no rating or no rating in common
     else
-      Option((rating1.get map (e => math.abs(e._2 - rating2.get.getOrElse(e._1, e._2)))).sum)
+      Option((rating1.get map (calcDistToRat2(_))).sum)
+
 
   }
 
   /** Computes the minkowski distance between two ratings
     *
-    * @param rating1
-    * @param rating2
+    * @param ratings1
+    * @param ratings2
     * @return None if one rating is not defined, else the distance
     */
-  def minkowski(rating1: Option[Map[String, Double]], rating2: Option[Map[String, Double]], r: Double): Option[Double] = {
+  def minkowski(ratings1: Option[Map[String, Double]],
+                ratings2: Option[Map[String, Double]],
+                r: Double): Option[Double] = {
 
     def distanceOrNone(rat1: (String, Double)): Double =
-      rating2.get.get(rat1._1) match {
+      ratings2.get.get(rat1._1) match {
         case Some(rating) => math.pow(math.abs(rat1._2 - rating), r)
         case None => 0
       }
 
-    if (rating1.isEmpty || rating2.isEmpty) None //no rating
-    else Option(math.pow((rating1.get map (e => distanceOrNone(e))).sum, 1 / r))
+    if (ratings1.isEmpty || ratings2.isEmpty) None //no rating
+    else Option(math.pow((ratings1.get map (e => distanceOrNone(e))).sum, 1 / r))
 
   }
 
-  /**Computes the Pearson correlation coefficient with a one-pass approximation
+  /** Computes the Pearson correlation coefficient with a one-pass approximation
     * https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#For_a_sample
-    *
     *
     * @param rating1
     * @param rating2
@@ -88,23 +97,25 @@ object Recommender {
       (math.sqrt(n * sum_sq_rat1 - sum_rat1 * sum_rat1) * math.sqrt(n * sum_sq_rat2 - sum_rat2 * sum_rat2))
 
     if (rating1.isEmpty || rating2.isEmpty) None //no rating
-    else rating1.get foreach (rat1 => rating2.get.get(rat1._1) match {
-      case Some(rat2) => passSums(rat1._2, rat2)
-      case None => //skip
-    })
+    else rating1.get foreach (
+      rat1 => rating2.get.get(rat1._1)
+      match {
+        case Some(rat2) => passSums(rat1._2, rat2)
+        case None => //skip
+      })
     Option(calc)
   }
 
-  /** Findes the nearest neighbor by distance
+  /** Finds the nearest neighbor by distance.
     *
-    * Computes all manhattenDistances and retunrs them in a ordered list.
-    * If the fromUser is in List, his distance will be Zero. If
+    * Computes all Manhatten-Distances and return them in an ordered list.
+    * If the user is in List, his distance will be Zero.
     *
     * @param fromUser
     * @param users all users, with
     * @return list of all users ordered by distance, 0 if s
     */
-  def computeNearestNeighbor(fromUser: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
+  def computeNNs(fromUser: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
     val userRatings = users get fromUser
     users.map(user => {
       manhattan(Some(user._2), userRatings) match {
@@ -121,29 +132,81 @@ object Recommender {
     * @return
     */
   def recommend(user: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
-    val nearestUsers = computeNearestNeighbor(user, users)
+    val nearestUsers = computeNNs(user, users)
     if (nearestUsers.size < 2) List[(String, Double)]()
     else {
-      val ratings = (users.get(user)).getOrElse(Map[String, Double]())
+      val ratings = users.getOrElse(user, Map[String, Double]())
 
       users.get(nearestUsers(1)._1) match {
-        case Some(user) => user.toList collect { case (id, rating) if (!ratings.get(id).isDefined) => (id, rating) }
+        case Some(neighbor) => neighbor.toList collect { case (id, rating) if ratings.get(id).isEmpty => (id, rating) }
         case None => List[(String, Double)]()
       }
     }
   }
 
-/*  def recommendWeighted(user: String, users: Map[String, Map[String, Double]]): List[(String, Double)] = {
-    val nearestUsers = computeNearestNeighbor(user, users)
-    val userRating = users get user
+  def recommendWeighted(user: String, data: Map[String, Map[String, Double]]): List[(String, Double)] = {
 
-    def weighted() : List[(String,Double)] = {
-      nearestUsers
+    case class RatingAcc(sum_rat: Double = 0, norm_rat: Double = 0)
+
+    val accRatings = mutable.Map[String, RatingAcc]()
+    val userRatings = data(user)
+    val allNeighbors = computeNNs(user, data)
+
+
+    def updateAccRating(item: String, rat: Double, dist: Double) = {
+      accRatings.get(item) match {
+        case Some(acc) => accRatings.put(item, RatingAcc((acc.sum_rat + rat * dist), acc.norm_rat + dist))
+        case None => accRatings.put(item, RatingAcc(rat, dist))
+      }
     }
 
-    if(userRating.isEmpty) None
-    else
-  }*/
+    def normalize(sum: Double, norm: Double) =
+      BigDecimal.apply(sum / norm).setScale(1, RoundingMode.HALF_UP).doubleValue()
 
-  //Testing commit message
+    allNeighbors foreach (neighbor => {
+      data(neighbor._1) foreach (rating => {
+        userRatings.get(rating._1) match {
+          case Some(_) => //allready has a rating for the item
+          case None => updateAccRating(rating._1, rating._2, neighbor._2)
+        }
+      })
+    })
+    accRatings.map(e => (e._1, normalize(e._2.sum_rat, e._2.norm_rat))) //normalize rating
+      .toList
+  }
+
+  def recommendWeightedPear(user: String, data: Map[String, Map[String, Double]]): List[(String, Double)] = {
+
+    case class RatingAcc(sum_rat: Double = 0, norm_rat: Double = 0)
+
+    val accRatings = mutable.Map[String, RatingAcc]()
+    val userRatings = data(user)
+    val allNeighbors = computeNNs(user, data)
+
+
+    def updateAccRating(item: String, rat: Double, dist: Double) = {
+      accRatings.get(item) match {
+        case Some(acc) => accRatings.put(item, RatingAcc((acc.sum_rat + rat * dist), acc.norm_rat + dist))
+        case None => accRatings.put(item, RatingAcc(rat, dist))
+      }
+    }
+
+    def normalize(sum: Double, norm: Double) =
+      BigDecimal.apply(sum / norm).setScale(1, RoundingMode.HALF_UP).doubleValue()
+
+    allNeighbors foreach (neighbor => {
+      val p = pearsonCorrCoeff(Option(userRatings), Option(data(neighbor._1))) match {
+        case Some(p) => p
+        case None => 0
+      }
+      data(neighbor._1) foreach (otherRating => {
+        userRatings.get(otherRating._1) match {
+          case Some(_) => //allready has a rating for the item
+          case None => updateAccRating(otherRating._1, otherRating._2, p)
+        }
+      })
+    })
+    accRatings.map(e => (e._1, normalize(e._2.sum_rat, e._2.norm_rat))) //normalize rating
+      .toList
+  }
 }

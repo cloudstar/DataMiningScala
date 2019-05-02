@@ -1,8 +1,7 @@
-package guideToDataMining.recommender
+import guideToDataMining.recommender.Recommender;
+import org.scalatest.FunSuite
 
-import guideToDataMining.Recommender
-
-class RecommenderTest extends org.scalatest.FunSuite {
+class RecommenderTest extends  FunSuite {
 
   val users: Map[String, Map[String, Double]] = Map(
     ("Angelica", Map("BT" -> 3.5, "BB" -> 2.0, "NJ" -> 4.5, "P" -> 5.0, "SS" -> 1.5, "TS" -> 2.5, "VW" -> 2.0)),
@@ -17,7 +16,7 @@ class RecommenderTest extends org.scalatest.FunSuite {
 
   //#### Testing of metrics ####
   test("Manhattan Tests") {
-    val dist = Recommender.manhattan(users get ("Bill"), users get ("Sam"))
+    val dist = Recommender.manhattan(users get "Bill", users get "Sam")
     assert(dist.get == 8)
     assert(!Recommender.manhattan(users get ("Bill"), users get ("Ute")).isDefined)
     assert(!Recommender.manhattan(users get ("Hans"), users get ("Ute")).isDefined)
@@ -32,13 +31,13 @@ class RecommenderTest extends org.scalatest.FunSuite {
 
   //#### Testing of NN ####
   test("get nearestNeighbor distance") {
-    val nn = Recommender.computeNearestNeighbor("Bill", users)
+    val nn = Recommender.computeNNs("Bill", users)
     assert(nn(0) equals("Dan", 4.0))
     assert(nn(1) equals("Veronica", 4.0))
   }
 
   test("user not in data") {
-    val nn = Recommender.computeNearestNeighbor("NO_ONE", users)
+    val nn = Recommender.computeNNs("NO_ONE", users)
     assert(nn isEmpty)
   }
 
